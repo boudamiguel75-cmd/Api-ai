@@ -1,0 +1,13 @@
+{
+  "name": "mon-api-shisui-foot",
+  "version": "1.0.0",
+  "description": "API Node.js pour bot IA et mode Carrière Foot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@google/generative-ai": "^0.21.0"
+  }
+}
