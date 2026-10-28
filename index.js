@@ -1,19 +1,29 @@
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { Mistral } = require('@mistralai/mistralai');
 
 const app = express();
 app.use(express.json());
 
-// Initialiser l'IA avec la clé API stockée dans les variables d'environnement de Render
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey);
+// ─── CONFIGURATION DES CLÉS API ───
+const geminiApiKey = process.env.GEMINI_API_KEY;
+const mistralApiKey = process.env.MISTRAL_API_KEY;
+
+// Initialisation de Gemini
+const genAI = new GoogleGenerativeAI(geminiApiKey);
+
+// Initialisation de Mistral
+const mistral = new Mistral({ apiKey: mistralApiKey });
 
 // Route d'accueil
 app.get('/', (req, res) => {
-  res.json({ status: "API Gemini & Foot en ligne 🚀" });
+  res.json({ 
+    status: "API Multi-IA (Gemini & Mistral) en ligne 🚀",
+    services: ["/api/gemini", "/api/mistral", "/api/foot"]
+  });
 });
 
-// ─── ENDPOINT GEMINI (Pour votre commande Shisui) ───
+// ─── ENDPOINT GEMINI (Pour votre bot / Shisui) ───
 app.get('/api/gemini', async (req, res) => {
   const prompt = req.query.q || req.query.prompt;
   
@@ -33,11 +43,37 @@ app.get('/api/gemini', async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur Gemini:", error);
-    res.status(500).json({ error: "Erreur lors de la génération IA." });
+    res.status(500).json({ error: "Erreur lors de la génération IA Gemini." });
   }
 });
 
-// ─── ENDPOINT FOOTBALL IA (Pour la commande Foot) ───
+// ─── ENDPOINT MISTRAL (Nouvelle route IA) ───
+app.get('/api/mistral', async (req, res) => {
+  const prompt = req.query.q || req.query.prompt;
+  
+  if (!prompt) {
+    return res.status(400).json({ error: "Le paramètre 'q' ou 'prompt' est requis." });
+  }
+
+  try {
+    const response = await mistral.chat.complete({
+      model: 'mistral-small-latest', // Modèle rapide et performant
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.choices[0].message.content;
+
+    res.json({
+      result: text,
+      success: true
+    });
+  } catch (error) {
+    console.error("Erreur Mistral:", error);
+    res.status(500).json({ error: "Erreur lors de la génération IA Mistral." });
+  }
+});
+
+// ─── ENDPOINT FOOTBALL IA (Utilise Gemini par défaut) ───
 app.get('/api/foot', async (req, res) => {
   const { player, club, opponent, action, score } = req.query;
 
