@@ -1,14 +1,13 @@
 {
-  "name": "mon-api-shisui-foot",
-  "version": "1.1.0",
-  "description": "API Node.js pour bot IA (Gemini & Mistral) et mode Carrière Foot",
+  "name": "api-openrouter-foot",
+  "version": "1.0.0",
+  "description": "API Node.js avec OpenRouter",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "@google/generative-ai": "^0.21.0",
-    "@mistralai/mistralai": "^1.5.0"
+    "axios": "^1.6.8"
   }
 }
