@@ -1,30 +1,22 @@
 const express = require('express');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { Mistral } = require('@mistralai/mistralai');
+const axios = require('axios');
 
 const app = express();
 app.use(express.json());
 
-// ─── CONFIGURATION DES CLÉS API ───
-const geminiApiKey = process.env.GEMINI_API_KEY;
-const mistralApiKey = process.env.MISTRAL_API_KEY;
-
-// Initialisation de Gemini
-const genAI = new GoogleGenerativeAI(geminiApiKey);
-
-// Initialisation de Mistral
-const mistral = new Mistral({ apiKey: mistralApiKey });
+// Récupération de la clé OpenRouter depuis les variables d'environnement de Render
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 // Route d'accueil
 app.get('/', (req, res) => {
   res.json({ 
-    status: "API Multi-IA (Gemini & Mistral) en ligne 🚀",
-    services: ["/api/gemini", "/api/mistral", "/api/foot"]
+    status: "API OpenRouter en ligne 🚀",
+    endpoints: ["/api/ai", "/api/foot"]
   });
 });
 
-// ─── ENDPOINT GEMINI (Pour votre bot / Shisui) ───
-app.get('/api/gemini', async (req, res) => {
+// ─── ENDPOINT GÉNÉRAL AI (Via OpenRouter) ───
+app.get('/api/ai', async (req, res) => {
   const prompt = req.query.q || req.query.prompt;
   
   if (!prompt) {
@@ -32,48 +24,35 @@ app.get('/api/gemini', async (req, res) => {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        // Vous pouvez changer le modèle ici (ex: "deepseek/deepseek-chat", "openai/gpt-4o", etc.)
+        model: "deepseek/deepseek-chat", 
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://render.com", // Optionnel pour OpenRouter
+          "X-Title": "Mon API Bot"             // Optionnel pour OpenRouter
+        }
+      }
+    );
+
+    const text = response.data.choices[0].message.content;
 
     res.json({
       result: text,
       success: true
     });
   } catch (error) {
-    console.error("Erreur Gemini:", error);
-    res.status(500).json({ error: "Erreur lors de la génération IA Gemini." });
+    console.error("Erreur OpenRouter:", error.response?.data || error.message);
+    res.status(500).json({ error: "Erreur lors de la génération IA avec OpenRouter." });
   }
 });
 
-// ─── ENDPOINT MISTRAL (Nouvelle route IA) ───
-app.get('/api/mistral', async (req, res) => {
-  const prompt = req.query.q || req.query.prompt;
-  
-  if (!prompt) {
-    return res.status(400).json({ error: "Le paramètre 'q' ou 'prompt' est requis." });
-  }
-
-  try {
-    const response = await mistral.chat.complete({
-      model: 'mistral-small-latest', // Modèle rapide et performant
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = response.choices[0].message.content;
-
-    res.json({
-      result: text,
-      success: true
-    });
-  } catch (error) {
-    console.error("Erreur Mistral:", error);
-    res.status(500).json({ error: "Erreur lors de la génération IA Mistral." });
-  }
-});
-
-// ─── ENDPOINT FOOTBALL IA (Utilise Gemini par défaut) ───
+// ─── ENDPOINT FOOTBALL IA (Via OpenRouter) ───
 app.get('/api/foot', async (req, res) => {
   const { player, club, opponent, action, score } = req.query;
 
@@ -81,32 +60,36 @@ app.get('/api/foot', async (req, res) => {
     return res.status(400).json({ error: "Paramètres 'player' et 'action' requis." });
   }
 
-  const systemPrompt = `Tu es un journaliste et commentateur sportif de football passionné, style Canal+ / BeIN Sports. 
-Rédige un commentaire très court (2 phrases max), dynamique et immersif avec des emojis.`;
-
-  const userPrompt = `Joueur: ${player} (${club || 'Équipe'})
-Action/Événement: ${action}
-Opposant: ${opponent || 'Adversaire'}
-Score final: ${score || 'N/A'}`;
+  const systemPrompt = "Tu es un journaliste et commentateur sportif de football passionné, style Canal+ / BeIN Sports. Rédige un commentaire très court (2 phrases max), dynamique et immersif avec des emojis.";
+  const userPrompt = `Joueur: ${player} (${club || 'Équipe'}) | Action: ${action} | Adversaire: ${opponent || 'N/A'} | Score: ${score || 'N/A'}`;
 
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: systemPrompt 
-    });
+    const response = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model: "deepseek/deepseek-chat",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ]
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`
+        }
+      }
+    );
 
-    const result = await model.generateContent(userPrompt);
-    const response = await result.response;
-    const commentary = response.text();
+    const commentary = response.data.choices[0].message.content;
 
     res.json({
       commentary: commentary.trim(),
       success: true
     });
   } catch (error) {
-    console.error("Erreur API Foot:", error);
+    console.error("Erreur API Foot OpenRouter:", error.response?.data || error.message);
     res.json({
-      commentary: `⚽ Match intense pour ${player} sous les couleurs de ${club} !`,
+      commentary: `⚽ Match de folie pour ${player} avec ${club || 'son équipe'} !`,
       success: false
     });
   }
